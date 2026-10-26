@@ -1,0 +1,635 @@
+// CipherOps AI — Intelligent Criminal Records & Investigation Management System
+// Database Schema with Full Relational Integrity, Provenance & Audit Support
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------------------
+// ENUMS
+// -------------------------------------------------------------
+
+enum UserRoleType {
+  SYSTEM_ADMINISTRATOR
+  INVESTIGATION_SUPERVISOR
+  INVESTIGATOR
+  RECORDS_OFFICER
+  FORENSIC_ANALYST
+  READ_ONLY_AUDITOR
+}
+
+enum CaseStatus {
+  DRAFT
+  REPORTED
+  UNDER_REVIEW
+  UNDER_INVESTIGATION
+  AWAITING_FORENSIC_RESULTS
+  AWAITING_LEGAL_REVIEW
+  PENDING_COURT_PROCEEDINGS
+  CLOSED
+  REOPENED
+}
+
+enum CasePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum PersonLegalRole {
+  CONVICTED
+  ACCUSED
+  SUSPECT
+  WITNESS
+  COMPLAINANT
+  VICTIM
+  PERSON_OF_INTEREST
+  OTHER_INVOLVED_PARTY
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING_REVIEW
+  VERIFIED
+  DISPUTED
+  SEALED_OR_EXPUNGED
+}
+
+enum DocumentProcessingStatus {
+  UPLOADED
+  SECURITY_SCAN_PENDING
+  PROCESSING
+  OCR_IN_PROGRESS
+  INDEXING
+  READY
+  FAILED
+  REQUIRES_REVIEW
+}
+
+enum RelationshipType {
+  PERSON_ASSOCIATED_WITH_CASE
+  CASE_ASSOCIATED_WITH_INCIDENT
+  INCIDENT_OCCURRED_AT_LOCATION
+  EVIDENCE_COLLECTED_FOR_CASE
+  DOCUMENT_REFERENCES_PERSON
+  CASE_REFERENCES_ANOTHER_CASE
+  VEHICLE_RECORDED_IN_INCIDENT
+  CASE_SHARES_EVIDENCE
+  CASE_SHARES_LOCATION
+  COURT_PROCEEDING_CONCERNS_CASE
+  AI_SUGGESTED_LINK
+}
+
+enum EvidenceStatus {
+  LOGGED
+  IN_STORAGE
+  IN_TRANSIT
+  IN_ANALYSIS
+  COURT_EXHIBIT
+  DISPOSED
+  ARCHIVED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  UNDER_REVIEW
+  DONE
+  BLOCKED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum AuditActionType {
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  LOGOUT
+  RECORD_CREATE
+  RECORD_UPDATE
+  RECORD_DELETE
+  RECORD_ACCESS
+  DOCUMENT_DOWNLOAD
+  SEARCH_QUERY
+  AI_SEARCH_QUERY
+  EXPORT_JOB
+  PERMISSION_CHANGE
+  CUSTODY_TRANSFER
+  RELATIONSHIP_REVIEW
+  EXPUNGEMENT_OR_CORRECTION
+}
+
+// -------------------------------------------------------------
+// AUTHENTICATION & ACCESS CONTROL
+// -------------------------------------------------------------
+
+model User {
+  id                 String              @id @default(uuid())
+  email              String              @unique
+  badgeNumber        String              @unique
+  fullName           String
+  passwordHash       String
+  role               UserRoleType        @default(INVESTIGATOR)
+  department         String
+  isActive           Boolean             @default(true)
+  mfaEnabled         Boolean             @default(false)
+  mfaSecret          String?
+  lastLoginAt        DateTime?
+  failedLoginAttempts Int                @default(0)
+  lockoutUntil       DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  assignedCases      Case[]              @relation("AssignedInvestigator")
+  supervisedCases    Case[]              @relation("SupervisingOfficer")
+  evidenceCollected  EvidenceItem[]      @relation("EvidenceCollectedBy")
+  assignedTasks      InvestigationTask[] @relation("AssignedTasks")
+  createdTasks       InvestigationTask[] @relation("CreatedTasks")
+  taskComments       TaskComment[]
+  notifications      Notification[]
+  auditEvents        AuditEvent[]
+  exportJobs         ExportJob[]
+  reviewRequests     ReviewRequest[]
+  corrections        RecordCorrection[]
+  custodyTransfersFrom EvidenceCustodyEvent[] @relation("PreviousCustodian")
+  custodyTransfersTo   EvidenceCustodyEvent[] @relation("NewCustodian")
+
+  @@map("users")
+}
+
+// -------------------------------------------------------------
+// CASES & FIRS
+// -------------------------------------------------------------
+
+model Case {
+  id                    String              @id @default(uuid())
+  caseNumber            String              @unique // E.g., CAS-2026-0812
+  firNumber             String?             @unique // E.g., FIR/2026/0419
+  title                 String
+  description           String
+  policeStation         String
+  jurisdiction          String
+  status                CaseStatus          @default(UNDER_INVESTIGATION)
+  priority              CasePriority        @default(MEDIUM)
+  incidentDate          DateTime
+  reportedDate          DateTime            @default(now())
+  statutorySections     String[]            // E.g., ["IPC 379", "IPC 420"]
+  courtReferences       String?
+  classificationReason  String?
+  isSensitive           Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  assignedInvestigatorId String?
+  assignedInvestigator   User?              @relation("AssignedInvestigator", fields: [assignedInvestigatorId], references: [id])
+
+  supervisingOfficerId   String?
+  supervisingOfficer     User?              @relation("SupervisingOfficer", fields: [supervisingOfficerId], references: [id])
+
+  personAssociations    PersonCaseAssociation[]
+  incidents             Incident[]
+  evidenceItems         EvidenceItem[]
+  documents             DocumentCaseAssociation[]
+  timelineEvents        CaseTimelineEvent[]
+  tasks                 InvestigationTask[]
+  relationshipsFrom     CaseRelationship[]  @relation("SourceCase")
+  relationshipsTo       CaseRelationship[]  @relation("TargetCase")
+  courtProceedings      CourtProceeding[]
+  vehicles              Vehicle[]
+
+  @@map("cases")
+}
+
+// -------------------------------------------------------------
+// PERSONS & RECORDS
+// -------------------------------------------------------------
+
+model Person {
+  id                  String                  @id @default(uuid())
+  recordNumber        String                  @unique // E.g., PER-2026-0044
+  fullName            String
+  aliases             String[]
+  dateOfBirth         DateTime?
+  gender              String?
+  nationalIdMasked    String?                 // Strictly masked/redacted e.g. XXX-XX-4819
+  contactNumber       String?
+  currentAddress      String?
+  addressHistory      Json?                   // List of historical addresses with provenance
+  identifyingMarks    String[]
+  primaryLegalRole    PersonLegalRole         @default(PERSON_OF_INTEREST)
+  verificationStatus  VerificationStatus      @default(VERIFIED)
+  isExpunged          Boolean                 @default(false)
+  expungementNotes    String?
+  sourceOfInfo        String                  @default("Official Case Filing")
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  caseAssociations    PersonCaseAssociation[]
+  documentAssociations DocumentPersonAssociation[]
+
+  @@map("persons")
+}
+
+model PersonCaseAssociation {
+  id                  String                  @id @default(uuid())
+  personId            String
+  person              Person                  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  caseId              String
+  case                Case                    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  legalRole           PersonLegalRole
+  chargesOrAllegations String?
+  dispositionOutcome  String?
+  notes               String?
+  verificationStatus  VerificationStatus      @default(VERIFIED)
+  createdAt           DateTime                @default(now())
+
+  @@unique([personId, caseId])
+  @@map("person_case_associations")
+}
+
+// -------------------------------------------------------------
+// INCIDENTS & GEOSPATIAL LOCATIONS
+// -------------------------------------------------------------
+
+model Location {
+  id                  String                  @id @default(uuid())
+  locationName        String
+  formattedAddress    String
+  latitude            Float
+  longitude           Float
+  locationType        String                  // E.g., "Commercial Plaza", "Transit Hub", "Public Road"
+  jurisdiction        String
+  geocodingConfidence Float                   @default(1.0)
+  isApproximate       Boolean                 @default(false)
+  verificationStatus  VerificationStatus      @default(VERIFIED)
+  createdAt           DateTime                @default(now())
+
+  incidents           Incident[]
+
+  @@map("locations")
+}
+
+model Incident {
+  id                  String                  @id @default(uuid())
+  incidentNumber      String                  @unique // E.g., INC-2026-0021
+  title               String
+  category            String                  // E.g., "Burglary", "Cyber Fraud", "Assault", "Vehicle Theft"
+  description         String
+  occurredAt          DateTime
+  reportedAt          DateTime                @default(now())
+  severity            String                  @default("Medium") // "Low", "Medium", "High", "Critical"
+
+  caseId              String?
+  case                Case?                   @relation(fields: [caseId], references: [id])
+
+  locationId          String?
+  location            Location?               @relation(fields: [locationId], references: [id])
+
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@map("incidents")
+}
+
+// -------------------------------------------------------------
+// CASE RELATIONSHIPS & GRAPH
+// -------------------------------------------------------------
+
+model CaseRelationship {
+  id                  String                  @id @default(uuid())
+  sourceCaseId        String
+  sourceCase          Case                    @relation("SourceCase", fields: [sourceCaseId], references: [id], onDelete: Cascade)
+  targetCaseId        String
+  targetCase          Case                    @relation("TargetCase", fields: [targetCaseId], references: [id], onDelete: Cascade)
+  relationshipType    RelationshipType
+  description         String
+  supportingEvidence  String?
+  isVerified          Boolean                 @default(false)
+  confidenceScore     Float                   @default(1.0)
+  reasonForSuggestion String?
+  suggestedBy         String                  @default("HUMAN_INVESTIGATOR") // "HUMAN_INVESTIGATOR" or "AI_SUBSYSTEM"
+  reviewedBy          String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@map("case_relationships")
+}
+
+// -------------------------------------------------------------
+// EVIDENCE & CHAIN OF CUSTODY
+// -------------------------------------------------------------
+
+model EvidenceItem {
+  id                  String                  @id @default(uuid())
+  evidenceNumber      String                  @unique // E.g., EVI-2026-0199
+  caseId              String
+  case                Case                    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  category            String                  // "Digital", "Forensic", "Physical", "Documentary", "Ballistics"
+  description         String
+  collectionDateTime  DateTime
+  collectionLocation  String
+  storageLocation     String
+  currentCustodianName String
+  barcode             String                  @unique
+  sha256Hash          String?                 // File integrity checksum for digital evidence
+  sealReference       String?
+  status              EvidenceStatus          @default(LOGGED)
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  collectedById       String?
+  collectedBy         User?                   @relation("EvidenceCollectedBy", fields: [collectedById], references: [id])
+
+  custodyEvents       EvidenceCustodyEvent[]
+
+  @@map("evidence_items")
+}
+
+model EvidenceCustodyEvent {
+  id                  String                  @id @default(uuid())
+  evidenceId          String
+  evidence            EvidenceItem            @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  timestamp           DateTime                @default(now())
+  transferReason      String
+  transferLocation    String
+  authorizationNote   String?
+  
+  previousCustodianId String?
+  previousCustodian   User?                   @relation("PreviousCustodian", fields: [previousCustodianId], references: [id])
+  previousCustodianName String
+
+  newCustodianId      String?
+  newCustodian        User?                   @relation("NewCustodian", fields: [newCustodianId], references: [id])
+  newCustodianName    String
+
+  // Tamper-evident cryptographic chaining
+  previousHash        String                  // SHA256 of preceding custody block
+  currentHash         String                  // SHA256 of (evidenceId + timestamp + transferReason + previousHash)
+
+  @@map("evidence_custody_events")
+}
+
+// -------------------------------------------------------------
+// DOCUMENTS & AI SEARCH EMBEDDINGS
+// -------------------------------------------------------------
+
+model Document {
+  id                  String                    @id @default(uuid())
+  documentNumber      String                    @unique // E.g., DOC-2026-0043
+  title               String
+  documentType        String                    // "FIR Report", "Forensic Report", "Witness Statement", "Court Order", etc.
+  fileName            String
+  fileSize            Int
+  mimeType            String
+  filePath            String
+  sha256Hash          String
+  extractedText       String?
+  pageCount           Int                       @default(1)
+  processingStatus    DocumentProcessingStatus  @default(READY)
+  ocrPerformed        Boolean                   @default(false)
+  isClassified        Boolean                   @default(false)
+  retentionCategory   String                    @default("STANDARD_10_YEAR")
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  caseAssociations    DocumentCaseAssociation[]
+  personAssociations  DocumentPersonAssociation[]
+  chunks              DocumentChunk[]
+
+  @@map("documents")
+}
+
+model DocumentCaseAssociation {
+  id                  String                    @id @default(uuid())
+  documentId          String
+  document            Document                  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  caseId              String
+  case                Case                      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  createdAt           DateTime                  @default(now())
+
+  @@unique([documentId, caseId])
+  @@map("document_case_associations")
+}
+
+model DocumentPersonAssociation {
+  id                  String                    @id @default(uuid())
+  documentId          String
+  document            Document                  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  personId            String
+  person              Person                    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  mentionContext      String?
+  createdAt           DateTime                  @default(now())
+
+  @@unique([documentId, personId])
+  @@map("document_person_associations")
+}
+
+model DocumentChunk {
+  id                  String                    @id @default(uuid())
+  documentId          String
+  document            Document                  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex          Int
+  pageNumber          Int                       @default(1)
+  content             String
+  tokenCount          Int                       @default(0)
+  embedding           String?                   // Stored vector representation or serialized floats
+  createdAt           DateTime                  @default(now())
+
+  @@map("document_chunks")
+}
+
+// -------------------------------------------------------------
+// ENTITY REGISTRIES: VEHICLES, ORGS & COURTS
+// -------------------------------------------------------------
+
+model Vehicle {
+  id                  String                    @id @default(uuid())
+  registrationNumber  String                    @unique // E.g., DL-01-AB-1234
+  vehicleType         String                    // E.g., "Sedan", "SUV", "Motorcycle", "Commercial Truck"
+  make                String
+  model               String
+  color               String
+  registeredOwner     String?
+  verificationStatus  VerificationStatus        @default(VERIFIED)
+  caseId              String?
+  case                Case?                     @relation(fields: [caseId], references: [id])
+  createdAt           DateTime                  @default(now())
+
+  @@map("vehicles")
+}
+
+model Organization {
+  id                  String                    @id @default(uuid())
+  name                String                    @unique
+  registrationNumber  String?
+  orgType             String                    // "Corporate", "Financial", "Non-Profit", "Logistics"
+  registeredAddress   String?
+  associatedCasesCount Int                      @default(0)
+  verificationStatus  VerificationStatus        @default(VERIFIED)
+  createdAt           DateTime                  @default(now())
+
+  @@map("organizations")
+}
+
+model CourtProceeding {
+  id                  String                    @id @default(uuid())
+  proceedingNumber    String                    @unique // E.g., CRT-2026-091
+  courtName           String
+  caseId              String
+  case                Case                      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  presidingJudge      String
+  hearingDate         DateTime
+  matterDescription   String
+  legalOutcome        String?
+  nextHearingDate     DateTime?
+  createdAt           DateTime                  @default(now())
+
+  @@map("court_proceedings")
+}
+
+// -------------------------------------------------------------
+// TIMELINES, TASKS & NOTIFICATIONS
+// -------------------------------------------------------------
+
+model CaseTimelineEvent {
+  id                  String                    @id @default(uuid())
+  caseId              String
+  case                Case                      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  timestamp           DateTime
+  eventType           String                    // "FIR_FILED", "EVIDENCE_COLLECTED", "WITNESS_INTERVIEW", "FORENSIC_RESULT", "STATUS_CHANGE"
+  title               String
+  description         String
+  author              String
+  isVerified          Boolean                   @default(true)
+  createdAt           DateTime                  @default(now())
+
+  @@map("case_timeline_events")
+}
+
+model InvestigationTask {
+  id                  String                    @id @default(uuid())
+  title               String
+  description         String
+  status              TaskStatus                @default(TODO)
+  priority            TaskPriority              @default(MEDIUM)
+  dueDate             DateTime?
+  caseId              String?
+  case                Case?                     @relation(fields: [caseId], references: [id])
+  
+  assignedToId        String?
+  assignedTo          User?                     @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  
+  createdById         String?
+  createdBy           User?                     @relation("CreatedTasks", fields: [createdById], references: [id])
+
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  comments            TaskComment[]
+
+  @@map("investigation_tasks")
+}
+
+model TaskComment {
+  id                  String                    @id @default(uuid())
+  taskId              String
+  task                InvestigationTask         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId              String
+  user                User                      @relation(fields: [userId], references: [id])
+  comment             String
+  createdAt           DateTime                  @default(now())
+
+  @@map("task_comments")
+}
+
+model Notification {
+  id                  String                    @id @default(uuid())
+  userId              String
+  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title               String
+  message             String
+  category            String                    // "CASE_ASSIGNMENT", "EVIDENCE_ALERT", "TASK_DUE", "AI_SUGGESTION"
+  isRead              Boolean                   @default(false)
+  linkUrl             String?
+  createdAt           DateTime                  @default(now())
+
+  @@map("notifications")
+}
+
+// -------------------------------------------------------------
+// TAMPER-EVIDENT AUDIT & GOVERNANCE
+// -------------------------------------------------------------
+
+model AuditEvent {
+  id                  String                    @id @default(uuid())
+  timestamp           DateTime                  @default(now())
+  userId              String?
+  user                User?                     @relation(fields: [userId], references: [id])
+  userBadge           String?
+  userName            String?
+  action              AuditActionType
+  targetResource      String                    // E.g., "Case:CAS-2026-0812"
+  details             String
+  ipAddress           String?
+  userAgent           String?
+  previousHash        String                    // Hash-linked ledger entry
+  recordHash          String                    // SHA256 of (id + timestamp + user + action + targetResource + previousHash)
+
+  @@map("audit_events")
+}
+
+model ReviewRequest {
+  id                  String                    @id @default(uuid())
+  requestNumber       String                    @unique
+  targetRecordType    String                    // "PERSON_DUPLICATE", "AI_RELATIONSHIP", "DATA_QUALITY"
+  targetRecordId      String
+  reason              String
+  status              String                    @default("PENDING") // "PENDING", "APPROVED", "REJECTED"
+  requestedById       String
+  requestedBy         User                      @relation(fields: [requestedById], references: [id])
+  reviewNotes         String?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  @@map("review_requests")
+}
+
+model RecordCorrection {
+  id                  String                    @id @default(uuid())
+  recordType          String                    // "PERSON", "CASE", "EVIDENCE"
+  recordId            String
+  fieldChanged        String
+  oldValue            String?
+  newValue            String?
+  reason              String
+  authorizedById      String
+  authorizedBy        User                      @relation(fields: [authorizedById], references: [id])
+  createdAt           DateTime                  @default(now())
+
+  @@map("record_corrections")
+}
+
+model ExportJob {
+  id                  String                    @id @default(uuid())
+  reportType          String                    // "CASE_SUMMARY", "EVIDENCE_INVENTORY", "CHAIN_OF_CUSTODY", "AUDIT_LOG"
+  format              String                    // "PDF", "CSV", "JSON"
+  status              String                    @default("COMPLETED")
+  downloadUrl         String?
+  fileSize            Int?
+  recordCount         Int                       @default(0)
+  generatedById       String
+  generatedBy         User                      @relation(fields: [generatedById], references: [id])
+  createdAt           DateTime                  @default(now())
+
+  @@map("export_jobs")
+}

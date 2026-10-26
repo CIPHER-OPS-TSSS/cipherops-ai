@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: cipherops-postgres
+    environment:
+      POSTGRES_USER: cipherops
+      POSTGRES_PASSWORD: cipherops_secret_password
+      POSTGRES_DB: cipherops_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cipherops -d cipherops_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: cipherops-backend
+    environment:
+      PORT: 4000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://cipherops:cipherops_secret_password@postgres:5432/cipherops_db?schema=public
+      JWT_SECRET: cipherops_enterprise_production_jwt_secret_2026
+      JWT_REFRESH_SECRET: cipherops_refresh_token_production_key_2026
+      AI_PROVIDER: MOCK
+      AI_MODEL: mock-gpt4-investigator
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/backend/uploads
+      - backend_data:/app/backend/data
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: cipherops-frontend
+    ports:
+      - "80:80"
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  backend_uploads:
+  backend_data:

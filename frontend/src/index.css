@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-graphite-950 text-slate-100 font-sans antialiased;
+  }
+
+  /* Custom dark scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0b0f17;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+  }
+}
+
+/* Leaflet Map overrides for dark graphite aesthetics */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background-color: #0b0f17 !important;
+  font-family: inherit;
+}
+
+.leaflet-tile {
+  filter: brightness(0.7) invert(1) contrast(3) hue-rotate(200deg) saturate(0.35) brightness(0.85);
+}
+
+.leaflet-popup-content-wrapper {
+  background: #111827 !important;
+  color: #f1f5f9 !important;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7);
+}
+
+.leaflet-popup-tip {
+  background: #111827 !important;
+}
+
+.leaflet-bar a {
+  background-color: #111827 !important;
+  color: #22d3ee !important;
+  border-bottom: 1px solid #1e293b !important;
+}
+.leaflet-bar a:hover {
+  background-color: #1e293b !important;
+}
