@@ -95,3 +95,6 @@ Access the application at `http://localhost`.
 3. **Unverified Link Safeguard**: AI-suggested connections remain visibly tagged as unreviewed until approved by an authorized supervisor.
 4. **No Automated Merging**: Suspect duplicate records are surfaced for human review and are never automatically merged.
  Automated Things Manually
+
+Improved AI automation
+Done with AI
