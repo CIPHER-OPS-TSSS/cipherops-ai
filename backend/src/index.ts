@@ -60,6 +60,17 @@ if (!fs.existsSync(CONFIG.UPLOAD_DIR)) {
 }
 app.use('/uploads', express.static(CONFIG.UPLOAD_DIR));
 
+app.get('/', (req, res) => res.status(200).json({
+  status: 'ok',
+  service: 'CipherOps AI Backend',
+  timestamp: new Date().toISOString(),
+}));
+app.get('/health', (req, res) => res.status(200).json({
+  status: 'ok',
+  service: 'CipherOps AI Backend',
+  timestamp: new Date().toISOString(),
+}));
+
 // Serve the built frontend in production (single-service deploy)
 const FRONTEND_DIST = path.join(__dirname, '../../frontend/dist');
 if (fs.existsSync(FRONTEND_DIST)) {
