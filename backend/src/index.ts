@@ -82,6 +82,16 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
+const statusPayload = () => ({
+  status: 'ok',
+  service: 'CipherOps AI Backend',
+  timestamp: new Date().toISOString(),
+});
+
+// Root and health status endpoints
+app.get('/', (req, res) => res.status(200).json(statusPayload()));
+app.get('/health', (req, res) => res.status(200).json(statusPayload()));
+
 // Mount Routes
 app.use('/api/auth', authRouter);
 app.use('/api/cases', casesRouter);
