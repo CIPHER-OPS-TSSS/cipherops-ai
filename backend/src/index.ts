@@ -60,6 +60,16 @@ if (!fs.existsSync(CONFIG.UPLOAD_DIR)) {
 }
 app.use('/uploads', express.static(CONFIG.UPLOAD_DIR));
 
+// Serve the built frontend in production (single-service deploy)
+const FRONTEND_DIST = path.join(__dirname, '../../frontend/dist');
+if (fs.existsSync(FRONTEND_DIST)) {
+  app.use(express.static(FRONTEND_DIST));
+  // SPA fallback: any non-API GET serves index.html so client-side routes work
+  app.get(/^\/(?!api|uploads).*/, (req: Request, res: Response) => {
+    res.sendFile(path.join(FRONTEND_DIST, 'index.html'));
+  });
+}
+
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
