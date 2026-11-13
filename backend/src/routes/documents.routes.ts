@@ -1,31 +1,17 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import { dbStore } from '../database/store.js';
 import { authMiddleware, requirePermission } from '../middleware/auth.js';
 import { PERMISSIONS, CONFIG } from '../config/index.js';
+import { uploadToCloudinary, isCloudinaryConfigured } from '../config/Cloudinary.js';
 
 export const documentsRouter = Router();
 
 documentsRouter.use(authMiddleware);
 
-// Setup multer storage
-const uploadStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    if (!fs.existsSync(CONFIG.UPLOAD_DIR)) {
-      fs.mkdirSync(CONFIG.UPLOAD_DIR, { recursive: true });
-    }
-    cb(null, CONFIG.UPLOAD_DIR);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + '-' + file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_'));
-  },
-});
-
+// Multer memory storage — files are streamed straight to Cloudinary
 const upload = multer({
-  storage: uploadStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: CONFIG.MAX_FILE_SIZE_MB * 1024 * 1024 },
 });
 
@@ -62,13 +48,25 @@ documentsRouter.get('/:id', requirePermission(PERMISSIONS.DOCUMENT_VIEW), (req: 
 });
 
 // POST /api/documents/upload - Upload file with OCR & indexing
-documentsRouter.post('/upload', requirePermission(PERMISSIONS.DOCUMENT_UPLOAD), upload.single('file'), (req: Request, res: Response) => {
+documentsRouter.post('/upload', requirePermission(PERMISSIONS.DOCUMENT_UPLOAD), upload.single('file'), async (req: Request, res: Response) => {
   const file = req.file;
   const { title, documentType, caseId, extractedText } = req.body;
 
-  const fileName = file ? file.filename : `uploaded_doc_${Date.now()}.pdf`;
+  const fileName = file ? file.originalname : `uploaded_doc_${Date.now()}.pdf`;
   const fileSize = file ? file.size : 284000;
   const mimeType = file ? file.mimetype : 'application/pdf';
+
+  // Store file in Cloudinary when configured; skip for metadata-only submissions
+  let cloudinaryInfo: { publicId: string; url: string; secureUrl: string } | null = null;
+  if (file && isCloudinaryConfigured) {
+    try {
+      const result = await uploadToCloudinary(file.buffer, file.originalname);
+      cloudinaryInfo = { publicId: result.publicId, url: result.url, secureUrl: result.secureUrl };
+    } catch (err) {
+      console.error('Cloudinary upload failed:', err);
+      return res.status(502).json({ error: 'Failed to store file in Cloudinary' });
+    }
+  }
 
   const simulatedOcrText = extractedText || `CIPHEROPS OCR TEXT EXTRACTION ENGINE
 File: ${fileName} | Ingested: ${new Date().toISOString()}
@@ -84,6 +82,7 @@ All entries correspond to verified forensic and investigative proceedings.`;
     documentType: documentType || 'Investigation Report',
     caseId,
     extractedText: simulatedOcrText,
+    filePath: cloudinaryInfo?.secureUrl,
   });
 
   dbStore.logAudit({
@@ -99,6 +98,7 @@ All entries correspond to verified forensic and investigative proceedings.`;
   res.status(201).json({
     message: 'Document uploaded, OCR processed, and indexed successfully',
     document: newDoc,
+    cloudinary: cloudinaryInfo,
   });
 });
 

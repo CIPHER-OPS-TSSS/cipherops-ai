@@ -23,6 +23,7 @@ import { auditRouter } from './routes/audit.routes.js';
 import { dataQualityRouter } from './routes/dataquality.routes.js';
 import { adminRouter } from './routes/admin.routes.js';
 import { entitiesRouter } from './routes/entities.routes.js';
+import { uploadRouter } from './routes/upload.routes.js';
 
 const app = express();
 
@@ -89,6 +90,7 @@ app.use('/api/audit', auditRouter);
 app.use('/api/data-quality', dataQualityRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/entities', entitiesRouter);
+app.use('/api/upload', uploadRouter);
 
 // Global Error Handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

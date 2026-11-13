@@ -643,7 +643,7 @@ class Store {
       fileName: fileData.fileName,
       fileSize: fileData.fileSize || 250000,
       mimeType: fileData.mimeType || 'application/pdf',
-      filePath: `/uploads/${fileData.fileName}`,
+      filePath: fileData.filePath || `/uploads/${fileData.fileName}`,
       sha256Hash: sha256,
       extractedText: text,
       pageCount: fileData.pageCount || 1,

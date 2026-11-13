@@ -13,6 +13,10 @@ export const CONFIG = {
   AI_MODEL: process.env.AI_MODEL || 'mock-gpt4-investigator',
   UPLOAD_DIR: process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'),
   MAX_FILE_SIZE_MB: 25,
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '',
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '',
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || '',
+  CLOUDINARY_FOLDER: process.env.CLOUDINARY_FOLDER || 'cipherops/documents',
   MAX_LOGIN_ATTEMPTS: 5,
   LOCKOUT_DURATION_MINUTES: 15,
 };

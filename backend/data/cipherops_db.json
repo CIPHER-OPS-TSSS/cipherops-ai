@@ -1941,7 +1941,7 @@
       "sha256Hash": "b8c9d0e1f234567890abcdef1234567890abcdef1234567890abcdef1234567a",
       "sealReference": "SEAL-DELPOL-41901",
       "status": "IN_STORAGE",
-      "updatedAt": "2026-10-23T03:56:26.580Z"
+      "updatedAt": "2026-10-29T07:14:32.855Z"
     },
     {
       "id": "evi-003",
@@ -2322,6 +2322,18 @@
       "newCustodianName": "Forensic Officer Inspector Verma",
       "previousHash": "0000000000000000000000000000000000000000000000000000000000000000",
       "currentHash": "3f61704ec066c96713ef6fdfcbd877155ed4ace15a0cad478e7fa1836683628b"
+    },
+    {
+      "id": "ece-mvt7k0m5",
+      "evidenceId": "evi-002",
+      "timestamp": "2026-10-29T07:14:32.860Z",
+      "transferReason": "Microscopic fiber analysis under Section 165 CrPC",
+      "transferLocation": "SFSL Biology Division Locker B-2",
+      "authorizationNote": "Authorized Official Custody Transfer Protocol",
+      "previousCustodianName": "Forensic Officer Inspector Verma",
+      "newCustodianName": "Forensic Officer Inspector Verma",
+      "previousHash": "3f61704ec066c96713ef6fdfcbd877155ed4ace15a0cad478e7fa1836683628b",
+      "currentHash": "206287312d0072bad2f387fd98d532cdc1b1e4986c86cd5c7c736b4c5c509fb4"
     }
   ],
   "documents": [
