@@ -1941,7 +1941,7 @@
       "sha256Hash": "b8c9d0e1f234567890abcdef1234567890abcdef1234567890abcdef1234567a",
       "sealReference": "SEAL-DELPOL-41901",
       "status": "IN_STORAGE",
-      "updatedAt": "2026-10-29T07:14:32.855Z"
+      "updatedAt": "2026-11-13T08:40:54.533Z"
     },
     {
       "id": "evi-003",
@@ -2334,6 +2334,42 @@
       "newCustodianName": "Forensic Officer Inspector Verma",
       "previousHash": "3f61704ec066c96713ef6fdfcbd877155ed4ace15a0cad478e7fa1836683628b",
       "currentHash": "206287312d0072bad2f387fd98d532cdc1b1e4986c86cd5c7c736b4c5c509fb4"
+    },
+    {
+      "id": "ece-mweq265k",
+      "evidenceId": "evi-002",
+      "timestamp": "2026-11-13T08:35:42.632Z",
+      "transferReason": "Microscopic fiber analysis under Section 165 CrPC",
+      "transferLocation": "SFSL Biology Division Locker B-2",
+      "authorizationNote": "Authorized Official Custody Transfer Protocol",
+      "previousCustodianName": "Forensic Officer Inspector Verma",
+      "newCustodianName": "Forensic Officer Inspector Verma",
+      "previousHash": "206287312d0072bad2f387fd98d532cdc1b1e4986c86cd5c7c736b4c5c509fb4",
+      "currentHash": "c9f4ce8a5ce3c6a3f11fd9acb281b56d465d6c9c062b12c209b873d798b06011"
+    },
+    {
+      "id": "ece-mweq5c2b",
+      "evidenceId": "evi-002",
+      "timestamp": "2026-11-13T08:38:10.259Z",
+      "transferReason": "Microscopic fiber analysis under Section 165 CrPC",
+      "transferLocation": "SFSL Biology Division Locker B-2",
+      "authorizationNote": "Authorized Official Custody Transfer Protocol",
+      "previousCustodianName": "Forensic Officer Inspector Verma",
+      "newCustodianName": "Forensic Officer Inspector Verma",
+      "previousHash": "c9f4ce8a5ce3c6a3f11fd9acb281b56d465d6c9c062b12c209b873d798b06011",
+      "currentHash": "0d600eccac4eb524d84d13d8ab279597fb6d3ec625df3c30617a1f75675384ff"
+    },
+    {
+      "id": "ece-mweq8utj",
+      "evidenceId": "evi-002",
+      "timestamp": "2026-11-13T08:40:54.535Z",
+      "transferReason": "Microscopic fiber analysis under Section 165 CrPC",
+      "transferLocation": "SFSL Biology Division Locker B-2",
+      "authorizationNote": "Authorized Official Custody Transfer Protocol",
+      "previousCustodianName": "Forensic Officer Inspector Verma",
+      "newCustodianName": "Forensic Officer Inspector Verma",
+      "previousHash": "0d600eccac4eb524d84d13d8ab279597fb6d3ec625df3c30617a1f75675384ff",
+      "currentHash": "ead84c609ff5fa13f49c82ff60d4aec0aa80fbea069804fef1484561371e296b"
     }
   ],
   "documents": [
