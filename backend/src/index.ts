@@ -33,8 +33,28 @@ app.use(helmet({
 }));
 
 // CORS
+// Allowed origins come from CORS_ORIGIN (comma-separated). Local dev origins are
+// always allowed so the Vite dev proxy and localhost previews keep working.
+const allowedOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const localOrigins = [
+  'http://localhost:5173',
+  'http://localhost:4173',
+  'http://localhost:3000',
+];
+
 app.use(cors({
-  origin: '*',
+  origin: (origin, callback) => {
+    // Allow non-browser requests (curl, health checks) which have no Origin header.
+    if (!origin) return callback(null, true);
+    if (localOrigins.includes(origin) || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin not allowed by CORS: ${origin}`));
+  },
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Demo-Role'],
 }));
